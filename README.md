@@ -9,7 +9,7 @@ always rejecting the login attempt.
 
 ### Usage
 ```
-Usage of /tmp/go-build564020242/command-line-arguments/_obj/exe/fssh:
+Usage:
   -key="../keys/dummy_id_rsa": path to SSH private key
   -port=2222: SSH server port
 ```
