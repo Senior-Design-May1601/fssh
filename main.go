@@ -38,9 +38,7 @@ func passwdHandler(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
     return nil, errors.New("")
 }
 
-type SSHPlugin struct {
-    port int
-}
+type SSHPlugin struct {}
 
 func (x *SSHPlugin) Start(args *plugin.Args, reply *plugin.Reply) error {
     log.Println("ssh start called")
@@ -81,16 +79,12 @@ func (x *SSHPlugin) Restart(args *plugin.Args, reply *plugin.Reply) error {
     return nil
 }
 
-func (x *SSHPlugin) Port() int {
-    return 10000
-}
-
 var sshConfig ssh.ServerConfig
 var listener net.Listener
 
 func main () {
-    sshPlugin := &SSHPlugin{port: 10000}
-    server, err := plugin.NewPlugin(sshPlugin)
+    sshPlugin := &SSHPlugin{}
+    server, err := plugin.NewPluginServer(sshPlugin)
     if err != nil {
         log.Fatal(err)
     }
