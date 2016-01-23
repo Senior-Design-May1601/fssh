@@ -3,16 +3,18 @@ package main
 import (
     "errors"
     "flag"
+    "log"
     "io/ioutil"
     "net"
     "strconv"
 
     "golang.org/x/crypto/ssh"
+    "github.com/Senior-Design-May1601/projectmain/logger"
 )
 
 const (
-    DEFAULT_KEY = "../keys/dummy_id_rsa"
-    DEFAULT_PORT = 2222
+    DEFAULT_KEY = "/home/nskinkel/src/go/src/github.com/Senior-Design-May1601/fssh/keys/dummy_id_rsa"
+    DEFAULT_PORT = 8022
 )
 
 func readSecretKey(path string) (ssh.Signer) {
@@ -30,12 +32,16 @@ func readSecretKey(path string) (ssh.Signer) {
 }
 
 func keyHandler(c ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
+    mylogger.Println("key login attempt")
     return nil, errors.New("")
 }
 
 func passwdHandler(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
+    mylogger.Println("password login attempt")
     return nil, errors.New("")
 }
+
+var mylogger *log.Logger
 
 func main() {
     p := flag.Int("port", DEFAULT_PORT, "SSH server port")
@@ -54,6 +60,8 @@ func main() {
         panic(err)
     }
     defer s.Close()
+
+    mylogger = logger.NewLogger("", 0)
 
     for {
         c, err := s.Accept()
