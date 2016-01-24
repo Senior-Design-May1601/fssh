@@ -1,93 +1,74 @@
 package main
 
 import (
-    "errors"
-    "io/ioutil"
-    "log"
-    "net"
+	"errors"
+	"flag"
+	"io/ioutil"
+	"log"
+	"net"
+	"strconv"
 
-    "golang.org/x/crypto/ssh"
-    "github.com/Senior-Design-May1601/projectmain/plugin"
+	"github.com/Senior-Design-May1601/projectmain/logger"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
-    KEY_PATH = "/path/to/private/key"
-    SSH_PORT = "8022"
+	DEFAULT_KEY  = "/full/path/to/key"
+	DEFAULT_PORT = 8022
 )
 
-func readSecretKey(path string) (ssh.Signer) {
-    raw, err := ioutil.ReadFile(path)
-    if err != nil {
-        log.Fatal(err)
-    }
+func readSecretKey(path string) ssh.Signer {
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
 
-    sk, err := ssh.ParsePrivateKey(raw)
-    if err != nil {
-        log.Fatal(err)
-    }
+	sk, err := ssh.ParsePrivateKey(raw)
+	if err != nil {
+		panic(err)
+	}
 
-    return sk
+	return sk
 }
 
 func keyHandler(c ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
-    log.Println("SSH public key connection attempt.")
-    return nil, errors.New("")
+	mylogger.Println("key login attempt")
+	return nil, errors.New("")
 }
 
 func passwdHandler(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
-    return nil, errors.New("")
+	mylogger.Println("password login attempt")
+	return nil, errors.New("")
 }
 
-type SSHPlugin struct {}
+var mylogger *log.Logger
 
-func (x *SSHPlugin) Start(args *plugin.Args, reply *plugin.Reply) error {
-    log.Println("ssh start called")
-    sshConfig = ssh.ServerConfig{
-        PublicKeyCallback: keyHandler,
-        PasswordCallback: passwdHandler,
-    }
-    sshConfig.AddHostKey(readSecretKey(KEY_PATH))
+func main() {
+	p := flag.Int("port", DEFAULT_PORT, "SSH server port")
+	key := flag.String("key", DEFAULT_KEY, "path to SSH private key")
+	flag.Parse()
+	port := ":" + strconv.Itoa(*p)
 
-    listener, err := net.Listen("tcp", "localhost:"+SSH_PORT)
-    if err != nil {
-        return errors.New("Failed to start SSH server.")
-    }
-    log.Println("SSH server listening on", SSH_PORT)
+	config := ssh.ServerConfig{
+		PublicKeyCallback: keyHandler,
+		PasswordCallback:  passwdHandler,
+	}
+	config.AddHostKey(readSecretKey(*key))
 
-    go func() {
-        for {
-            conn, err := listener.Accept()
-            if err != nil {
-                log.Fatal(err)
-            }
-            ssh.NewServerConn(conn, &sshConfig)
-        }
-    }()
+	s, err := net.Listen("tcp", port)
+	if err != nil {
+		panic(err)
+	}
+	defer s.Close()
 
-    return nil
-}
+	mylogger = logger.NewLogger("", 0)
 
-func (x *SSHPlugin) Stop(args *plugin.Args, reply *plugin.Reply) error {
-    log.Println("ssh stop called")
-    // TODO: will this actually stop the server?!?
-    listener.Close()
-    return nil
-}
+	for {
+		c, err := s.Accept()
+		if err != nil {
+			panic(err)
+		}
 
-func (x *SSHPlugin) Restart(args *plugin.Args, reply *plugin.Reply) error {
-    log.Println("ssh restart called")
-    return nil
-}
-
-var sshConfig ssh.ServerConfig
-var listener net.Listener
-
-func main () {
-    sshPlugin := &SSHPlugin{}
-    server, err := plugin.NewPluginServer(sshPlugin)
-    if err != nil {
-        log.Fatal(err)
-    }
-    server.Serve()
-    log.Println("ssh server dying")
+		ssh.NewServerConn(c, &config)
+	}
 }
