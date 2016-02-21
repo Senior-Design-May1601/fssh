@@ -8,24 +8,26 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/BurntSushi/toml"
 	"github.com/Senior-Design-May1601/projectmain/logger"
 	"golang.org/x/crypto/ssh"
 )
 
-const (
-	DEFAULT_KEY  = "/full/path/to/key"
-	DEFAULT_PORT = 8022
-)
+type Config struct {
+	Address string
+	Port    int
+	Key     string
+}
 
 func readSecretKey(path string) ssh.Signer {
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
-		panic(err)
+		mylogger.Fatal(err)
 	}
 
 	sk, err := ssh.ParsePrivateKey(raw)
 	if err != nil {
-		panic(err)
+		mylogger.Fatal(err)
 	}
 
 	return sk
@@ -44,31 +46,34 @@ func passwdHandler(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
 var mylogger *log.Logger
 
 func main() {
-	p := flag.Int("port", DEFAULT_PORT, "SSH server port")
-	key := flag.String("key", DEFAULT_KEY, "path to SSH private key")
-	flag.Parse()
-	port := ":" + strconv.Itoa(*p)
+	mylogger = logger.NewLogger("", 0)
 
-	config := ssh.ServerConfig{
+	configPath := flag.String("config", "", "fssh config file")
+	flag.Parse()
+
+	var config Config
+	if _, err := toml.DecodeFile(*configPath, &config); err != nil {
+		mylogger.Fatal(err)
+	}
+
+	sshConfig := ssh.ServerConfig{
 		PublicKeyCallback: keyHandler,
 		PasswordCallback:  passwdHandler,
 	}
-	config.AddHostKey(readSecretKey(*key))
+	sshConfig.AddHostKey(readSecretKey(config.Key))
 
-	s, err := net.Listen("tcp", port)
+	s, err := net.Listen("tcp", config.Address+":"+strconv.Itoa(config.Port))
 	if err != nil {
-		panic(err)
+		mylogger.Fatal(err)
 	}
 	defer s.Close()
-
-	mylogger = logger.NewLogger("", 0)
 
 	for {
 		c, err := s.Accept()
 		if err != nil {
-			panic(err)
+			mylogger.Fatal(err)
 		}
 
-		ssh.NewServerConn(c, &config)
+		ssh.NewServerConn(c, &sshConfig)
 	}
 }

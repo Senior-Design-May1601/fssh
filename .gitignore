@@ -24,7 +24,7 @@ _testmain.go
 *.prof
 
 # ignore the binary
-fssh/fssh
+fssh
 
 # vim stuff
 [._]*.s[a-w][a-z]
@@ -33,3 +33,6 @@ fssh/fssh
 Session.vim
 .netrwhist
 *~
+
+# ignore our real config
+dev-config.toml
