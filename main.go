@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/Senior-Design-May1601/projectmain/logger"
+	"github.com/Senior-Design-May1601/Splunk/alert"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -33,17 +34,44 @@ func readSecretKey(path string) ssh.Signer {
 	return sk
 }
 
-func keyHandler(c ssh.ConnMetadata, k ssh.PublicKey) (*ssh.Permissions, error) {
-	mylogger.Println("key login attempt")
+func baseAlertMap(metadata ssh.ConnMetadata) map[string]string {
+    meta := make(map[string]string)
+    meta["service"] = "ssh"
+    meta["user"] = metadata.User()
+    meta["remote"] = metadata.RemoteAddr().String()
+    meta["local"] = metadata.LocalAddr().String()
+
+    return meta
+}
+
+func keyAlert(metadata ssh.ConnMetadata, key ssh.PublicKey) string {
+    meta := baseAlertMap(metadata)
+    meta["authtype"] = "publickey"
+    meta["key"] = string(ssh.MarshalAuthorizedKey(key))
+
+    return alert.NewSplunkAlertMessage(meta)
+}
+
+func passwdAlert(metadata ssh.ConnMetadata, passwd []byte) string {
+    meta := baseAlertMap(metadata)
+    meta["authtype"] = "password"
+    meta["password"] = string(passwd)
+
+    return alert.NewSplunkAlertMessage(meta)
+}
+
+func keyHandler(meta ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	mylogger.Println(keyAlert(meta, key))
 	return nil, errors.New("")
 }
 
-func passwdHandler(c ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
-	mylogger.Println("password login attempt")
+func passwdHandler(meta ssh.ConnMetadata, p []byte) (*ssh.Permissions, error) {
+	mylogger.Println(passwdAlert(meta, p))
 	return nil, errors.New("")
 }
 
 var mylogger *log.Logger
+var config Config
 
 func main() {
 	mylogger = logger.NewLogger("", 0)
@@ -51,7 +79,6 @@ func main() {
 	configPath := flag.String("config", "", "fssh config file")
 	flag.Parse()
 
-	var config Config
 	if _, err := toml.DecodeFile(*configPath, &config); err != nil {
 		mylogger.Fatal(err)
 	}
